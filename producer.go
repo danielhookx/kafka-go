@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
@@ -16,9 +17,42 @@ type ProducerConfig struct {
 	realVersion sarama.KafkaVersion `json:"-,optional"`
 }
 
+// funcProducerOption wraps a function that modifies producerOptions into an implementation of the ProducerOption interface.
+type funcProducerOption struct {
+	f func(*producerOptions)
+}
+
+func (fdo *funcProducerOption) apply(do *producerOptions) {
+	fdo.f(do)
+}
+
+func newFuncProducerOption(f func(*producerOptions)) *funcProducerOption {
+	return &funcProducerOption{
+		f: f,
+	}
+}
+
+// A ProducerOption sets options such as interceptor etc.
+type ProducerOption interface {
+	apply(*producerOptions)
+}
+
+type producerOptions struct {
+	interceptors []ProducerInterceptor
+}
+
+// WithProducerInterceptors returns a ServerOption that sets the Interceptor for the producer.
+func WithProducerInterceptors(interceptors ...ProducerInterceptor) ProducerOption {
+	return newFuncProducerOption(func(o *producerOptions) {
+		o.interceptors = append(o.interceptors, interceptors...)
+	})
+}
+
 type Producer struct {
-	brokers []string
-	conn    sarama.SyncProducer
+	brokers     []string
+	conn        sarama.SyncProducer
+	opts        producerOptions
+	interceptor ProducerInterceptor
 }
 
 func ensureProducerConfig(cfg *ProducerConfig) {
@@ -34,7 +68,7 @@ func ensureProducerConfig(cfg *ProducerConfig) {
 	}
 }
 
-func NewProducer(cfg ProducerConfig) *Producer {
+func NewProducer(cfg ProducerConfig, opt ...ProducerOption) *Producer {
 	ensureProducerConfig(&cfg)
 	kc := sarama.NewConfig()
 	kc.Version = cfg.realVersion //current kafka version
@@ -47,11 +81,18 @@ func NewProducer(cfg ProducerConfig) *Producer {
 	if err != nil {
 		panic(err)
 	}
-	log.Info("producer dial kafka server", "brokers", cfg.Brokers)
-	return &Producer{
+	opts := producerOptions{}
+	for _, o := range opt {
+		o.apply(&opts)
+	}
+	p := &Producer{
 		brokers: cfg.Brokers,
 		conn:    pub,
+		opts:    opts,
 	}
+	producerInterceptors(p)
+	log.Info("producer dial kafka server", "brokers", cfg.Brokers)
+	return p
 }
 
 func (p *Producer) Publish(topic, k string, v []byte) (int32, int64, error) {
@@ -67,6 +108,27 @@ func (p *Producer) Publish(topic, k string, v []byte) (int32, int64, error) {
 	}
 	partition, offset, err := p.conn.SendMessage(m)
 	return partition, offset, err
+}
+
+func (p *Producer) PublishV2(ctx context.Context, topic, k string, v []byte) (int32, int64, error) {
+	if k == "" {
+		k = strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	m := &sarama.ProducerMessage{
+		Key:       sarama.StringEncoder(k),
+		Topic:     topic,
+		Value:     sarama.ByteEncoder(v),
+		Timestamp: time.Now(),
+	}
+	if p.interceptor == nil {
+		return p.publish(ctx, m)
+	}
+	return p.interceptor(ctx, m, p.publish)
+}
+
+func (p *Producer) publish(ctx context.Context, msg *sarama.ProducerMessage) (int32, int64, error) {
+	log.Debug("push params", "topic", msg.Topic, "brokers", p.brokers)
+	return p.conn.SendMessage(msg)
 }
 
 func (p *Producer) Close() error {
