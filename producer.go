@@ -14,7 +14,8 @@ type ProducerConfig struct {
 	Version string   `json:",optional"`
 	Brokers []string `json:",optional"`
 
-	realVersion sarama.KafkaVersion `json:"-,optional"`
+	realVersion     sarama.KafkaVersion `json:"-,optional"`
+	realVersionCode int                 `json:"-,optional"`
 }
 
 // funcProducerOption wraps a function that modifies producerOptions into an implementation of the ProducerOption interface.
@@ -61,7 +62,13 @@ func ensureProducerConfig(cfg *ProducerConfig) {
 	if err != nil {
 		cfg.realVersion = sarama.V2_0_0_0
 	}
+	versionCode := 1
+	if version.IsAtLeast(sarama.V0_11_0_0) {
+		versionCode = 2
+	}
+
 	cfg.realVersion = version
+	cfg.realVersionCode = versionCode
 
 	if len(cfg.Brokers) == 0 {
 		panic(errors.New("brokers is empty"))
@@ -95,22 +102,7 @@ func NewProducer(cfg ProducerConfig, opt ...ProducerOption) *Producer {
 	return p
 }
 
-func (p *Producer) Publish(topic, k string, v []byte) (int32, int64, error) {
-	if k == "" {
-		k = strconv.FormatInt(time.Now().UnixNano(), 10)
-	}
-	log.Debug("push params", "topic", topic, "brokers", p.brokers)
-	m := &sarama.ProducerMessage{
-		Key:       sarama.StringEncoder(k),
-		Topic:     topic,
-		Value:     sarama.ByteEncoder(v),
-		Timestamp: time.Now(),
-	}
-	partition, offset, err := p.conn.SendMessage(m)
-	return partition, offset, err
-}
-
-func (p *Producer) PublishV2(ctx context.Context, topic, k string, v []byte) (int32, int64, error) {
+func (p *Producer) Publish(ctx context.Context, topic, k string, v []byte) (int32, int64, error) {
 	if k == "" {
 		k = strconv.FormatInt(time.Now().UnixNano(), 10)
 	}

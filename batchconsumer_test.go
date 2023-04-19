@@ -55,11 +55,11 @@ func TestGracefulStopBatchConsumer(t *testing.T) {
 		CacheCapacity: cacheSize,
 		Consumers:     1,
 		Processors:    1,
-	}, WithHandle(func(key string, data []byte) error {
+	}, newMockLegitimateConsumer(), WithHandle(func(ctx context.Context, key string, data []byte) error {
 		time.Sleep(time.Second)
 		log.Debug("receive msg", "data", string(data))
 		return nil
-	}), newMockLegitimateConsumer())
+	}))
 
 	// fill cache before batch consumer is running
 	for i := 0; i < cacheSize; i++ {
@@ -79,11 +79,11 @@ func TestForceStopBatchConsumer(t *testing.T) {
 		CacheCapacity: cacheSize,
 		Consumers:     1,
 		Processors:    1,
-	}, WithHandle(func(key string, data []byte) error {
+	}, newMockLegitimateConsumer(), WithHandle(func(ctx context.Context, key string, data []byte) error {
 		time.Sleep(time.Second)
 		log.Debug("receive msg", "data", string(data))
 		return nil
-	}), newMockLegitimateConsumer())
+	}))
 
 	// fill cache before batch consumer is running
 	for i := 0; i < cacheSize; i++ {
@@ -103,11 +103,11 @@ func TestGracefulStopBatchConsumerWithTimeout(t *testing.T) {
 		CacheCapacity: cacheSize,
 		Consumers:     1,
 		Processors:    1,
-	}, WithHandle(func(key string, data []byte) error {
+	}, newMockLegitimateConsumer(), WithHandle(func(ctx context.Context, key string, data []byte) error {
 		time.Sleep(time.Second)
 		log.Debug("receive msg", "data", string(data))
 		return nil
-	}), newMockLegitimateConsumer())
+	}))
 
 	// fill cache before batch consumer is running
 	for i := 0; i < cacheSize; i++ {

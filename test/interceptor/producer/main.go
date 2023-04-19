@@ -35,7 +35,7 @@ func main() {
 	p := kafka.NewProducer(kafka.ProducerConfig{
 		Version: "",
 		Brokers: []string{broker},
-	}, kafka.WithProducerInterceptors(interceptor.TestInterceptor))
+	}, kafka.WithProducerInterceptors(interceptor.TestProducerInterceptor))
 	end := start + 1000
 
 	log.Info("service start", "thread numbers", number, "broker", broker, "topic", topic, "start", start, "end", end)

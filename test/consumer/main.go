@@ -60,11 +60,11 @@ func main() {
 		CacheCapacity: batchCacheCapacity,
 		Consumers:     Consumers,
 		Processors:    Processors,
-	}, kafka.WithHandle(func(key string, data []byte) error {
+	}, consumer, kafka.WithHandle(func(ctx context.Context, key string, data []byte) error {
 		log.Info("receive msg:", "value", data)
 		time.Sleep(time.Millisecond * 500)
 		return nil
-	}), consumer)
+	}))
 
 	bc.Start()
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -41,7 +42,7 @@ func main() {
 	for i := 0; i < number; i++ {
 		go func(index int) {
 			for j := start; j < end; j++ {
-				_, _, err := p.Publish(topic, "", []byte(fmt.Sprintf("%d-%d", index, j)))
+				_, _, err := p.Publish(context.Background(), topic, "", []byte(fmt.Sprintf("%d-%d", index, j)))
 				if err != nil {
 					log.Error("publish failed", "err", err)
 				}
