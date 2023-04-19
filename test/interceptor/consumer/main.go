@@ -9,7 +9,8 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	kafka "github.com/oofpgDLD/kafka-go"
+	"github.com/oofpgDLD/kafka-go"
+	"github.com/oofpgDLD/kafka-go/test/interceptor"
 )
 
 var (
@@ -61,10 +62,10 @@ func main() {
 		Consumers:     Consumers,
 		Processors:    Processors,
 	}, consumer, kafka.WithHandle(func(ctx context.Context, key string, data []byte) error {
-		log.Info("receive msg:", "value", data)
+		log.Info("receive msg:", "value", string(data))
 		time.Sleep(time.Millisecond * 500)
 		return nil
-	}))
+	}), kafka.WithBatchConsumerInterceptors(interceptor.TestConsumerInterceptor))
 
 	bc.Start()
 

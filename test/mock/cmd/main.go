@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"os/signal"
@@ -37,10 +38,10 @@ func main() {
 		CacheCapacity: 0,
 		Consumers:     Consumers,
 		Processors:    Processors,
-	}, kafka.WithHandle(func(key string, data []byte) error {
+	}, consumer, kafka.WithHandle(func(ctx context.Context, key string, data []byte) error {
 		log.Info("receive msg:", "value", data)
 		return nil
-	}), consumer)
+	}))
 
 	bc.Start()
 

@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/inconshreveable/log15"
-	kafka "github.com/oofpgDLD/kafka-go"
+	"github.com/oofpgDLD/kafka-go"
+	"github.com/oofpgDLD/kafka-go/test/interceptor"
 )
 
 var log = log15.New("service", "test-producer")
@@ -25,7 +26,7 @@ var (
 func init() {
 	flag.IntVar(&start, "start", 0, "start print flag index")
 	flag.IntVar(&number, "number", 1, "product concurrency numbers")
-	flag.StringVar(&topic, "topic", "test-mytest-topic", "kafka topic")
+	flag.StringVar(&topic, "topic", "empty-topic", "kafka topic")
 	flag.StringVar(&broker, "broker", "127.0.0.1:9092", "kafka brokers")
 }
 
@@ -34,7 +35,7 @@ func main() {
 	p := kafka.NewProducer(kafka.ProducerConfig{
 		Version: "",
 		Brokers: []string{broker},
-	})
+	}, kafka.WithProducerInterceptors(interceptor.TestProducerInterceptor))
 	end := start + 1000
 
 	log.Info("service start", "thread numbers", number, "broker", broker, "topic", topic, "start", start, "end", end)

@@ -15,15 +15,26 @@ type IConsumer interface {
 	Close() error
 }
 
-type ConsumeHandle func(key string, data []byte) error
-
-type ConsumeHandler interface {
-	Consume(key string, data []byte) error
-}
+type ConsumeHandle func(ctx context.Context, key string, data []byte) error
 
 const (
 	defaultQueueCapacity = 1000
 )
+
+// funcBatchConsumerOption wraps a function that modifies batchConsumerOptions into an implementation of the BatchConsumerOption interface.
+type funcBatchConsumerOption struct {
+	f func(options *batchConsumerOptions)
+}
+
+func (fdo *funcBatchConsumerOption) apply(do *batchConsumerOptions) {
+	fdo.f(do)
+}
+
+func newFuncBatchConsumerOption(f func(*batchConsumerOptions)) *funcBatchConsumerOption {
+	return &funcBatchConsumerOption{
+		f: f,
+	}
+}
 
 type (
 	BatchConsumerConf struct {
@@ -33,9 +44,14 @@ type (
 	}
 
 	batchConsumerOptions struct {
-		logger log15.Logger
+		logger       log15.Logger
+		interceptors []ConsumeInterceptor
+		handler      ConsumeHandler
 	}
-	BatchConsumerOption func(*batchConsumerOptions)
+	// A BatchConsumerOption sets options such as interceptor etc.
+	BatchConsumerOption interface {
+		apply(*batchConsumerOptions)
+	}
 
 	BatchConsumer struct {
 		cfg             BatchConsumerConf
@@ -46,10 +62,39 @@ type (
 		producerWorkers *workerpool.WorkerPool
 		consumerWorkers *workerpool.WorkerPool
 		isClosed        int32
+		opts            batchConsumerOptions
+		interceptor     ConsumeInterceptor
 	}
 )
 
+// WithBatchConsumerInterceptors returns a ServerOption that sets the Interceptor for the producer.
+func WithBatchConsumerInterceptors(interceptors ...ConsumeInterceptor) BatchConsumerOption {
+	return newFuncBatchConsumerOption(func(o *batchConsumerOptions) {
+		o.interceptors = append(o.interceptors, interceptors...)
+	})
+}
+
+func WithLogger(logger log15.Logger) BatchConsumerOption {
+	return newFuncBatchConsumerOption(func(o *batchConsumerOptions) {
+		o.logger = logger
+	})
+}
+
+func WithHandle(handle ConsumeHandle) BatchConsumerOption {
+	if handle == nil {
+		panic("handle func is nil")
+	}
+	return newFuncBatchConsumerOption(func(o *batchConsumerOptions) {
+		o.handler = func(ctx context.Context, msg *sarama.ConsumerMessage) error {
+			return handle(ctx, string(msg.Key), msg.Value)
+		}
+	})
+}
+
 func ensureConfigOptions(cfg *BatchConsumerConf, options *batchConsumerOptions) {
+	if options.handler == nil {
+		panic("handler is nil")
+	}
 	if options.logger == nil {
 		options.logger = log15.New()
 	}
@@ -64,22 +109,24 @@ func ensureConfigOptions(cfg *BatchConsumerConf, options *batchConsumerOptions) 
 	}
 }
 
-func NewBatchConsumer(cfg BatchConsumerConf, handler ConsumeHandler, consumer IConsumer, opts ...BatchConsumerOption) *BatchConsumer {
-	var options batchConsumerOptions
-	for _, opt := range opts {
-		opt(&options)
+func NewBatchConsumer(cfg BatchConsumerConf, consumer IConsumer, opt ...BatchConsumerOption) *BatchConsumer {
+	opts := batchConsumerOptions{}
+	for _, o := range opt {
+		o.apply(&opts)
 	}
-	ensureConfigOptions(&cfg, &options)
-
-	return &BatchConsumer{
-		log:             options.logger,
+	ensureConfigOptions(&cfg, &opts)
+	bc := &BatchConsumer{
+		cfg:             cfg,
+		log:             opts.logger,
 		consumer:        consumer,
 		channel:         make(chan *sarama.ConsumerMessage, cfg.CacheCapacity),
-		handler:         handler,
-		cfg:             cfg,
-		consumerWorkers: workerpool.New(cfg.Processors),
+		handler:         opts.handler,
 		producerWorkers: workerpool.New(cfg.Consumers),
+		consumerWorkers: workerpool.New(cfg.Processors),
+		opts:            opts,
 	}
+	batchConsumerInterceptors(bc)
+	return bc
 }
 
 func (bc *BatchConsumer) startProducers() {
@@ -114,7 +161,7 @@ func (bc *BatchConsumer) startConsumers() {
 	for i := 0; i < bc.cfg.Processors; i++ {
 		bc.consumerWorkers.Submit(func() {
 			for msg := range bc.channel {
-				if err := bc.consumeOne(string(msg.Key), msg.Value); err != nil {
+				if err := bc.consumeOne(msg); err != nil {
 					bc.log.Error("Error on consuming message", "msg", string(msg.Value), "err", err)
 				}
 			}
@@ -122,8 +169,12 @@ func (bc *BatchConsumer) startConsumers() {
 	}
 }
 
-func (bc *BatchConsumer) consumeOne(key string, data []byte) error {
-	return bc.handler.Consume(key, data)
+func (bc *BatchConsumer) consumeOne(msg *sarama.ConsumerMessage) error {
+	if bc.interceptor == nil {
+		return bc.handler(context.TODO(), msg)
+	}
+
+	return bc.interceptor(context.TODO(), msg, bc.handler)
 }
 
 func (bc *BatchConsumer) close() {
@@ -156,24 +207,4 @@ func (bc *BatchConsumer) GracefulStop(ctx context.Context) {
 	case <-down:
 		return
 	}
-}
-
-func WithLogger(logger log15.Logger) BatchConsumerOption {
-	return func(options *batchConsumerOptions) {
-		options.logger = logger
-	}
-}
-
-func WithHandle(handle ConsumeHandle) ConsumeHandler {
-	return innerConsumeHandler{
-		handle: handle,
-	}
-}
-
-type innerConsumeHandler struct {
-	handle ConsumeHandle
-}
-
-func (ch innerConsumeHandler) Consume(k string, v []byte) error {
-	return ch.handle(k, v)
 }
