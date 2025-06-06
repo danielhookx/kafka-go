@@ -1,4 +1,4 @@
-module github.com/oofpgDLD/kafka-go
+module github.com/danielhookx/kafka-go
 
 go 1.15
 

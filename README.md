@@ -47,8 +47,8 @@ bc.Start()
 
 ```go
 imports(
-	"github.com/oofpgDLD/kafka-go"
-    "github.com/oofpgDLD/kafka-go/trace"
+	"github.com/danielhookx/kafka-go"
+    "github.com/danielhookx/kafka-go/trace"
 )
 
 // new consumer with trace interceptor

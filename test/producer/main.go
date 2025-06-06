@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	kafka "github.com/danielhookx/kafka-go"
 	"github.com/inconshreveable/log15"
-	kafka "github.com/oofpgDLD/kafka-go"
 )
 
 var log = log15.New("service", "test-producer")

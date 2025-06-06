@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Shopify/sarama"
-	"github.com/oofpgDLD/kafka-go"
+	"github.com/danielhookx/kafka-go"
 )
 
 func TestProducerInterceptor(ctx context.Context, msg *sarama.ProducerMessage, handler kafka.ProducerHandler) (int32, int64, error) {

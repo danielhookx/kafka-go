@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	kafka "github.com/danielhookx/kafka-go"
+	"github.com/danielhookx/kafka-go/test/mock"
 	log "github.com/inconshreveable/log15"
-	kafka "github.com/oofpgDLD/kafka-go"
-	"github.com/oofpgDLD/kafka-go/test/mock"
 )
 
 var (

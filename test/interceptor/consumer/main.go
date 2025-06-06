@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielhookx/kafka-go"
+	"github.com/danielhookx/kafka-go/test/interceptor"
 	log "github.com/inconshreveable/log15"
-	"github.com/oofpgDLD/kafka-go"
-	"github.com/oofpgDLD/kafka-go/test/interceptor"
 )
 
 var (
@@ -36,7 +36,6 @@ func init() {
 	flag.BoolVar(&graceful, "graceful", true, "stop service graceful")
 }
 
-//
 func main() {
 	flag.Parse()
 	log.Info("service start", "broker", broker, "topic", topic, "group", group)

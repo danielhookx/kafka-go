@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Shopify/sarama"
-	"github.com/oofpgDLD/kafka-go"
-	semconv "github.com/oofpgDLD/kafka-go/internal/semconv/v1.18.0"
+	"github.com/danielhookx/kafka-go"
+	semconv "github.com/danielhookx/kafka-go/internal/semconv/v1.18.0"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

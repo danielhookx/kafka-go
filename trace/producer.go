@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
-	semconv "github.com/oofpgDLD/kafka-go/internal/semconv/v1.18.0"
+	semconv "github.com/danielhookx/kafka-go/internal/semconv/v1.18.0"
 
 	"github.com/Shopify/sarama"
-	"github.com/oofpgDLD/kafka-go"
+	"github.com/danielhookx/kafka-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

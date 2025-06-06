@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	kafka "github.com/danielhookx/kafka-go"
 	log "github.com/inconshreveable/log15"
-	kafka "github.com/oofpgDLD/kafka-go"
 )
 
 var (
@@ -35,7 +35,6 @@ func init() {
 	flag.BoolVar(&graceful, "graceful", true, "stop service graceful")
 }
 
-//
 func main() {
 	flag.Parse()
 	log.Info("service start", "broker", broker, "topic", topic, "group", group)
